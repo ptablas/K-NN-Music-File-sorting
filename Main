@@ -1,0 +1,289 @@
+%{
+
+         ♦♦♦  Audio Analysis & Assesment  ♦♦♦
+
+         C   o   u   r   s   e   w   o   r   k
+
+                   ♦♦♦    2    ♦♦♦
+    
+                 Pablo Tablas de Paula  
+
+%}
+
+% Commands to clean... 
+%{
+...any command window's text (clc), stored variables (clear) and
+figures/plots we  have previously displayed (close all). mirverbose(0)
+stops the MIRtoolbox from printing so much information onto our command
+window.
+%}
+
+clc;
+clear
+close all
+mirverbose(0);
+
+% MirFunctions + results stored within groups.
+%{ 
+Within this For loop all 40 samples undergo 3 different analysis:
+    > Mirroughness: which gets the roughness of the audio file. Since it analyses each point
+                    the mean of this needs to be extracted.
+    > Mirskewness: which gets the skewness of the track.
+    > Mirrms: gets the rms, as in mirroughness, the mean needs to be extracted.
+   
+   Depending on the genre they belong to,
+   each function has its own group: 
+   ex. free_roughness, noise_rms, etc...
+   
+   The sprintf function is used in order to directly analyse the 
+   .wav files in one line of code.
+ %}
+
+for n = 1:20;
+   
+  free_roughness(n) =  mirgetdata(mirmean(mirroughness(sprintf('free%d.wav', n))));
+  free_skewness(n) =  mirgetdata(mirskewness(sprintf('free%d.wav', n)));
+  free_rms(n) =  mirgetdata(mirrms(sprintf('free%d.wav', n)));
+  noise_roughness(n) = mirgetdata(mirmean(mirroughness(sprintf('noise%d.wav', n))));
+  noise_skewness(n) = mirgetdata(mirskewness(sprintf('noise%d.wav', n)));
+  noise_rms(n) = mirgetdata(mirrms(sprintf('noise%d.wav', n)));
+  
+end
+
+% 2D scatter plots of the results. 
+% 3 functions plotted against each other with groups in different colours.
+%{
+    to comparatively asses their effectiveness to divide the groups into two
+    easily distinguishable categories.
+
+    Subplot is used to create a 3 rows x 4 columns matrix. In the 3 farther
+    left positions (or the first column), the 3 2D scatters are plotted. In
+    the other 3 columns, 3scatter, a 3D Scatter plot, has been plotted.
+
+    'r', 'g', 'c' and 'k' are colours and 'd' is diamond shape.
+    'MarkerFaceColor' allows to change the inside colour of the dots.
+    
+    set(gca,'xscale','log') makes the x axis logarithmical which is very
+    useful given roughness ranges from 0-1000 in Japanese Free Jazz samples and
+    1000-40000 in Japanoise.
+
+    The plots have been limited, in most cases loosing a couple of extreme
+    dots but really improving their clarity.
+%}
+
+    %Roughness vs. RMS
+
+subplot(3,4,1)
+scatter(free_roughness, free_rms, 'r', 'd', 'MarkerFaceColor','g');
+set(gca,'xscale','log')
+hold on;
+scatter(noise_roughness, noise_rms, 'd', 'c', 'MarkerFaceColor','k');
+grid on
+xlabel('Roughness')
+ylabel('RMS')
+xlim([0 20000])
+ylim([0 0.4])
+
+    %Roughness vs. Skewness
+
+subplot(3,4,5)
+scatter(free_roughness, free_skewness, 'r', 'd', 'MarkerFaceColor','g');
+set(gca,'xscale','log')
+hold on;
+scatter(noise_roughness, noise_skewness, 'd', 'c', 'MarkerFaceColor','k');
+grid on
+xlabel('Roughness')
+ylabel('Skewness')
+xlim([0 20000])
+ylim([1 4])
+
+    %RMS vs. Skewness
+
+subplot(3,4,9)
+scatter(free_rms, free_skewness, 'r', 'd', 'MarkerFaceColor','g');
+hold on;
+scatter(noise_rms, noise_skewness, 'd', 'c', 'MarkerFaceColor','k');
+grid on
+xlabel('RMS')
+ylabel('Skewness')
+xlim([0.1 0.35])
+ylim([1 4])
+
+%3D Plot.
+
+subplot(3,4,[2 12])
+scatter3(free_roughness,  free_skewness, free_rms, 'r', 'd', 'MarkerFaceColor','g');
+set(gca,'xscale','log')
+hold on;
+scatter3(noise_roughness,  noise_skewness, noise_rms, 'd', 'c', 'MarkerFaceColor','k');
+hold off
+grid on
+xlabel('Roughness')
+ylabel('Skewness')
+zlabel('RMS')
+legend('Japanese Free Jazz', 'Japanoise')
+
+%Creating a Data train with both groups
+%{
+Firstly, all parameters belonging to japanese free jazz and japanoise are 
+gathered within their own categories, free and noise, respectively.
+Secondly, those two categories are gathered into a bigger one called
+train_data, which is then assigned a class per row in the function classes.
+
+This will heavily simplify the K-nearest neighbour function, which will
+take the data from new samples and compare it to these.
+%}
+
+free = [free_roughness;  free_skewness; free_rms]';
+noise = [noise_roughness;  noise_skewness; noise_rms]';
+train_data = [free; noise];
+
+%Identify classes
+%{
+All the 20 samples corresponding to Japanese Free Jazz are labeled as "1"
+while all the samples corresponding to Japanoise are labeled as "2".
+
+This is done by writing 1 or 2 in the corresponding position to the row in
+
+"train_data"
+%}
+
+classes = [1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2]';
+
+% Adding the new samples and introducing their analysis into one group
+% called "new"
+%{ 
+    Here the new samples are analysed in a very similar fashion
+    to how free and noise samples were. Then these (new_roughness,
+    new_skewness and new_rms) are grouped into "new".
+
+    New1 & New2 are Japanoise, while New3,New4 and New5 are Japanese Free Jazz.
+    New5 though is a very noisy example of Free Jazz.
+%}
+
+for n = 1:5
+
+  new_roughness(n) =  mirgetdata(mirmean(mirroughness(sprintf('new%d.wav', n))));
+  new_skewness(n) =  mirgetdata(mirskewness(sprintf('new%d.wav', n)));
+  new_rms(n) =  mirgetdata(mirrms(sprintf('new%d.wav', n)));
+  
+end
+
+new = [new_roughness; new_skewness; new_rms]';
+
+
+% Comparing "new" against train_data
+%{
+    Here the Knnsearch function is used; this is given the training
+    analysis data "train_data" and the new analysis data "new". Then the
+    number of neighbours (which decides from how many nearest "dots" the
+    function will use to assign the group). In our case 3 works quite well.
+    The function then returns the location of these, as in their row, and
+    the distance between them and the new tracks.
+
+    Then new_class = classes(locations) finds the class number 1 or 2,
+    which is japanese free jazz or japanoise respectively.
+    In our new_class our vectors are:
+                
+                2   2   2
+                2   2   2
+                1   1   1
+                1   1   1
+                1   1   1
+
+    So there is absolutely no confusion the first two are Japanoise (2) and
+    the last three are Japanese Free Jazz (1).
+
+    The mode() function is then used, which detects the most frequent
+    value in an array (so 2, 2, 1, 1 and 1 respectively).
+
+    This is used in a For loop that runs five times, (new_class(n, :))
+    means everytime the loop is run, a different row will be analyzed.
+    If that row = 1 the first message will be printed, otherwise the second
+    will be.
+
+    fprintf() has been used, which seemingly combines disp() and sprintf().
+
+%}
+
+[locations, dist] = knnsearch(train_data, new, 'k', 3);
+new_class = classes(locations);
+mode(new_class)
+
+for n = 1:5
+    
+    if mode(new_class(n,:)) == 1
+    
+    fprintf('Track %d belongs to the Japanese Free Jazz genre\n', n)
+    
+else 
+    fprintf('Track %d belongs to the Japanoise genre\n', n)
+    
+    end
+
+end
+
+%-------- 2D & 3D Scatters with the new samples as well.
+
+    %Roughness vs. RMS
+
+figure(2)
+subplot(3,4,1)
+scatter(free_roughness, free_rms, 'r', 'd', 'MarkerFaceColor','g');
+set(gca,'xscale','log')
+hold on;
+scatter(noise_roughness, noise_rms, 'd', 'c', 'MarkerFaceColor','k');
+hold on
+scatter(new_roughness, new_rms, 'k','MarkerFaceColor','m');
+grid on
+xlabel('Roughness')
+ylabel('RMS')
+xlim([0 20000])
+ylim([0 0.4])
+
+    %Roughness vs. Skewness
+
+subplot(3,4,5)
+scatter(free_roughness, free_skewness, 'r', 'd', 'MarkerFaceColor','g');
+set(gca,'xscale','log')
+hold on;
+scatter(noise_roughness, noise_skewness, 'd', 'c', 'MarkerFaceColor','k');
+hold on
+scatter(new_roughness,  new_skewness,'k','MarkerFaceColor','m');
+grid on
+xlabel('Roughness')
+ylabel('Skewness')
+xlim([0 20000])
+ylim([1 4])
+
+    %RMS vs. Skewness
+
+subplot(3,4,9)
+scatter(free_rms, free_skewness, 'r', 'd', 'MarkerFaceColor','g');
+hold on;
+scatter(noise_rms, noise_skewness, 'd', 'c', 'MarkerFaceColor','k');
+hold on
+scatter(new_rms, new_skewness, 'k','MarkerFaceColor','m');
+grid on
+xlabel('RMS')
+ylabel('Skewness')
+xlim([0.05 0.35])
+ylim([1 4])
+
+% 3D plot
+
+subplot(3,4,[2 12])
+scatter3(free_roughness,  free_skewness, free_rms, 'r', 'd', 'MarkerFaceColor','g');
+set(gca,'xscale','log')
+hold on;
+scatter3(noise_roughness,  noise_skewness, noise_rms, 'd', 'c', 'MarkerFaceColor','k');
+hold on;
+scatter3(new_roughness,  new_skewness, new_rms, 'k','MarkerFaceColor','m');
+hold off
+grid on
+xlabel('Roughness')
+ylabel('Skewness')
+zlabel('RMS')
+legend('Japanese Free Jazz', 'Japanoise', 'New Samples')
+
+
